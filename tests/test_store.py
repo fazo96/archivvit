@@ -101,3 +101,10 @@ def test_migrates_old_schema(tmp_path):
     s.record_hot("NixOS", [post()])
     s.set_pinned("t3_a", True)
     assert s.db.execute("SELECT pinned FROM posts").fetchone()[0] == 1
+
+
+def test_prune_counts_from_latest_activity():
+    s = Store(":memory:")
+    s.record_hot("NixOS", [post("t3_a")], at="2026-09-01T00:00:00+00:00")  # last in hot long ago...
+    s.record_thread(None, "t3_a", [], at="2026-10-22T00:00:00+00:00")  # ...but fetched yesterday
+    assert s.prune(30, at="2026-10-23T00:00:00+00:00")["posts"] == 0

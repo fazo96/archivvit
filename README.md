@@ -24,6 +24,23 @@ Why and how Reddit can still be read logged out: [docs/reddit-access.md](docs/re
   archived threads point to the local copy.
 - `scheduler.py` — in `serve`, runs a pass every `scrape_interval_minutes` (or on "Run now"),
   re-reading the settings before each one.
+- `jobs.py` — on-demand fetches from the UI (a thread, one comment, a subreddit's hot page),
+  through the same client as the scheduler; their requests go first, so a click is served
+  within seconds even during a pass, without adding to the request rate.
+
+## Reddit URLs
+
+With reddit.com redirected here, Reddit's own paths open the archive: `/r/<sub>/comments/<id>/…`
+(a comment link scrolls to and highlights it), `/comments/<id>/`, `/gallery/<id>`, share links
+(`/r/<sub>/s/<code>`, resolved with one request) and `/r/<sub>/[hot|new|…]/`. A post that isn't
+archived gets a "Fetch from Reddit" button: the post and its first comments show in a few
+seconds, the rest as they load. A comment missing from a big, partly fetched thread can be
+fetched on its own, an unfollowed subreddit offers "Fetch hot now" (once) and "Add to my
+subreddits", and any other Reddit page says it isn't available. "copy link" on posts and
+comments copies the reddit.com URL.
+
+Retention (Settings) deletes posts that haven't been in hot or fetched for N days, with their
+comments; "Keep forever" on a thread exempts it.
 
 ## Use
 

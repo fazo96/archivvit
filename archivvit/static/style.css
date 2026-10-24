@@ -150,6 +150,12 @@ button.link {
   font-weight: 400;
 }
 button.link:hover { text-decoration: underline; }
+button.secondary { background: var(--accent-soft); color: var(--accent); }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.notice { padding: 0.5rem 0.7rem; border-radius: 0.4rem; background: var(--accent-soft); }
+.notice.error { color: var(--error); }
+.thread-post form.inline { margin-top: 0.5rem; }
+.comment.focus > summary, .comment.focus > .body { background: var(--accent-soft); border-radius: 0.3rem; }
 
 .pager {
   display: flex;

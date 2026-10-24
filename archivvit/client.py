@@ -2,6 +2,7 @@
 
 import logging
 import random
+import threading
 import time
 
 from curl_cffi import requests as creq
@@ -19,6 +20,10 @@ class Blocked(Exception):
 
 
 class Reddit:
+    """One request at a time, however many threads share it. Urgent requests (someone is
+    waiting on a page) go before the scheduler's at the next turn, so a click is served
+    within seconds even during a long pass, and the two never add up to more traffic."""
+
     def __init__(self, cfg: Config, store: Store):
         self.cfg = cfg
         self.store = store
@@ -27,6 +32,9 @@ class Reddit:
         self.remaining = None
         self.reset_at = None
         self.requests = 0
+        self._turn = threading.Condition()
+        self._busy = False
+        self._urgent_waiting = 0
 
     def _connect(self, fresh: bool):
         cookies = None if fresh else session.load(self.cfg.cookies_path)
@@ -53,7 +61,26 @@ class Reddit:
             time.sleep(wait)
         self.next_at = time.monotonic() + random.uniform(self.cfg.min_delay, self.cfg.max_delay)
 
-    def request(self, method: str, url: str, data: dict | None = None) -> str:
+    def request(self, method: str, url: str, data: dict | None = None, urgent: bool = False,
+                follow: bool = True) -> str:
+        with self._turn:
+            if urgent:
+                self._urgent_waiting += 1
+            try:
+                while self._busy or (not urgent and self._urgent_waiting):
+                    self._turn.wait()
+            finally:
+                if urgent:
+                    self._urgent_waiting -= 1
+            self._busy = True
+        try:
+            return self._request(method, url, data, follow)
+        finally:
+            with self._turn:
+                self._busy = False
+                self._turn.notify_all()
+
+    def _request(self, method, url, data, follow):
         if self.http is None:
             self._connect(fresh=False)
         for attempt in range(3):
@@ -61,7 +88,7 @@ class Reddit:
             if method == "POST":
                 data = {**(data or {}), "csrf_token": self._csrf()}
             t = time.monotonic()
-            r = self.http.request(method, url, data=data, timeout=30)
+            r = self.http.request(method, url, data=data, timeout=30, allow_redirects=follow)
             self.requests += 1
             ms = int((time.monotonic() - t) * 1000)
             rem = r.headers.get("x-ratelimit-remaining")
@@ -86,6 +113,10 @@ class Reddit:
                     self._connect(fresh=True)
                     continue
                 raise Blocked(f"{method} {url}: {note or r.status_code} after a fresh browser session")
+            if not follow and r.status_code in (301, 302, 303, 307, 308):
+                return r.headers.get("location", "")
+            if not follow and r.status_code < 400:
+                return ""
             if r.status_code >= 400:
                 raise RuntimeError(f"{method} {url}: HTTP {r.status_code}")
             return r.text
@@ -96,3 +127,23 @@ class Reddit:
 
     def post(self, url: str, data: dict) -> str:
         return self.request("POST", url, data)
+
+    def location(self, url: str) -> str:
+        """Where a redirecting URL (a share link) points, without following it. Urgent."""
+        return self.request("GET", url, urgent=True, follow=False)
+
+    def urgent(self) -> "Urgent":
+        return Urgent(self)
+
+
+class Urgent:
+    """The same client, with every request marked urgent: for fetches someone waits on."""
+
+    def __init__(self, reddit: Reddit):
+        self.reddit = reddit
+
+    def get(self, url: str) -> str:
+        return self.reddit.request("GET", url, urgent=True)
+
+    def post(self, url: str, data: dict) -> str:
+        return self.reddit.request("POST", url, data, urgent=True)

@@ -1,0 +1,21 @@
+{# On-demand fetches: a button that queues one, and what a queued or finished one is doing. #}
+{% macro fetch_button(kind, target, label) %}
+<form method="post" action="{{ url_for('fetch') }}" class="inline">
+  <input type="hidden" name="kind" value="{{ kind }}">
+  <input type="hidden" name="target" value="{{ target }}">
+  <input type="hidden" name="next" value="{{ request.full_path.rstrip('?') }}">
+  <button type="submit">{{ label }}</button>
+</form>
+{% endmacro %}
+
+{% macro job_status(job) %}
+{% if job and job.active %}
+<p class="notice busy">Fetching from Reddit{% if job.phase %}: {{ job.phase }}{% endif %}… this page reloads by itself.</p>
+{% elif job and job.state == 'failed' %}
+<p class="notice error">The fetch failed: {{ job.error }}</p>
+{% endif %}
+{% endmacro %}
+
+{% macro refresh_while() %}
+{% for j in varargs if j and j.active %}{% if loop.first %}<meta http-equiv="refresh" content="3">{% endif %}{% endfor %}
+{% endmacro %}

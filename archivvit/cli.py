@@ -64,12 +64,17 @@ def main():
 def serve(cfg, args):
     import waitress
 
+    from .jobs import Fetcher
     from .scheduler import Scheduler
     from .web import create_app
 
+    # One client for scheduled passes and on-demand fetches, so they share the pacing.
+    reddit = Reddit(cfg, Store(cfg.db_path, threadsafe=True))
+    fetcher = Fetcher(cfg.data_dir, reddit)
+    fetcher.start()
     scheduler = None
     if not args.no_scheduler:
-        scheduler = Scheduler(cfg.data_dir)
+        scheduler = Scheduler(cfg.data_dir, reddit)
         scheduler.start()
     logging.getLogger(__name__).info("serving on http://%s:%d", args.host, args.port)
-    waitress.serve(create_app(cfg.data_dir, scheduler), host=args.host, port=args.port, threads=4)
+    waitress.serve(create_app(cfg.data_dir, scheduler, fetcher), host=args.host, port=args.port, threads=4)

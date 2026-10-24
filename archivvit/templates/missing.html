@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "_fetch.html" import fetch_button, job_status, refresh_while %}
+{% block title %}Not archived · archivvit{% endblock %}
+{% block head %}{{ refresh_while(job) }}{% endblock %}
+{% block main %}
+<article class="card">
+  {% if sub %}<p class="crumbs"><a href="{{ url_for('subreddit', sub=sub) }}">r/{{ sub }}</a></p>{% endif %}
+  <h1>This post isn't in the archive</h1>
+  {{ job_status(job) }}
+  {% if not (job and job.active) %}
+  <p class="muted">Fetch it now to read it here: the post and its first comments arrive in a few seconds, the rest over the next minute or two.</p>
+  {{ fetch_button('thread', pid, 'Fetch from Reddit') }}
+  {% endif %}
+  <p class="muted small">
+    <a class="copy-link" href="https://www.reddit.com{{ request.path }}">copy link</a>
+  </p>
+</article>
+{% endblock %}

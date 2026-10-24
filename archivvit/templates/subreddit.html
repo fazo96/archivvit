@@ -1,8 +1,23 @@
 {% extends "base.html" %}
 {% from "_post.html" import post_row %}
+{% from "_fetch.html" import fetch_button, job_status, refresh_while %}
 {% block title %}r/{{ sub }} · archivvit{% endblock %}
+{% block head %}{{ refresh_while(job) }}{% endblock %}
 {% block main %}
 <h1>r/{{ sub }}</h1>
+{% if not followed %}
+<section class="card">
+  <p>r/{{ sub }} isn't one of your subreddits{% if hot %}: this is a one-off fetch, not kept up to date{% endif %}.</p>
+  {{ job_status(job) }}
+  <div class="actions">
+    {% if not (job and job.active) %}{{ fetch_button('hot', sub, 'Fetch hot now' if not hot else 'Fetch hot again') }}{% endif %}
+    <form method="post" action="{{ url_for('add_subreddit') }}" class="inline">
+      <input type="hidden" name="sub" value="{{ sub }}">
+      <button type="submit" class="secondary">Add to my subreddits</button>
+    </form>
+  </div>
+</section>
+{% endif %}
 {% if page == 1 %}
   {% if hot %}
   <p class="muted">Hot, as of {{ taken_at|ago }}</p>
@@ -10,7 +25,7 @@
     {% for p in hot %}{{ post_row(p, p.rank) }}{% endfor %}
   </ol>
   {% else %}
-  <p class="muted">Nothing archived yet. The next scrape pass will fetch it, or start one from <a href="{{ url_for('settings') }}">Settings</a>.</p>
+  {% if followed %}<p class="muted">Nothing archived yet. The next scrape pass will fetch it, or start one from <a href="{{ url_for('settings') }}">Settings</a>.</p>{% endif %}
   {% endif %}
 {% endif %}
 

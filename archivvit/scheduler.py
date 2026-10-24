@@ -14,9 +14,10 @@ log = logging.getLogger(__name__)
 
 
 class Scheduler(threading.Thread):
-    def __init__(self, data_dir: Path):
+    def __init__(self, data_dir: Path, reddit: Reddit | None = None):
         super().__init__(name="scheduler", daemon=True)
         self.data_dir = data_dir
+        self.reddit = reddit  # shared with on-demand fetches, if given
         self.wake = threading.Event()
         self.running_since: datetime | None = None
         self.last_run: dict | None = None
@@ -70,7 +71,9 @@ class Scheduler(threading.Thread):
         store = Store(cfg.db_path)
         result = {"started": started, "ok": False}
         try:
-            result.update(scrape.scrape(cfg, store, Reddit(cfg, store)))
+            if self.reddit:
+                self.reddit.cfg = cfg  # settings are re-read before each pass
+            result.update(scrape.scrape(cfg, store, self.reddit or Reddit(cfg, store)))
             result["ok"] = not result["errors"]
         except Blocked as e:
             log.error("blocked: %s", e)

@@ -43,9 +43,13 @@ EXTRA_SORTS = ("NEW", "OLD")
 SORT, MORE, CONTINUE = range(3)
 
 
-def fetch_thread(reddit: Reddit, permalink: str, max_requests: int):
+def fetch_thread(reddit: Reddit, permalink: str, max_requests: int, extra_sorts: bool = True, on_first=None):
     """The thread page, then other sort orders, "more replies" and "continue this thread",
-    until the post's comment count is reached or `max_requests` extra requests are spent."""
+    until the post's comment count is reached or `max_requests` extra requests are spent.
+
+    `permalink` can also be a comment's page (/comments/<id>/comment/<cid>/), usually with
+    extra_sorts=False. `on_first(post, comments)` is called after the first page, so a
+    waiting reader sees something before the remaining loaders are done."""
     frag = parse_comments(reddit.get(BASE + permalink))
     if frag.post is None:
         raise RuntimeError(f"{permalink}: no post on the thread page")
@@ -75,7 +79,9 @@ def fetch_thread(reddit: Reddit, permalink: str, max_requests: int):
             enqueue(CONTINUE, "GET", u)
 
     add(frag)
-    for sort in EXTRA_SORTS:
+    if on_first:
+        on_first(post, list(comments.values()))
+    for sort in EXTRA_SORTS if extra_sorts else ():
         enqueue(SORT, "GET", f"{BASE}/svc/shreddit/comments/r/{sub}/{short_id}?seeker-session=true&render-mode=partial&sort={sort}")
 
     expected = post.comment_count or 0
@@ -101,6 +107,7 @@ def fetch_thread(reddit: Reddit, permalink: str, max_requests: int):
 
 def scrape(cfg: Config, store: Store, reddit: Reddit) -> dict:
     summary = {"hot_posts": 0, "threads": 0, "comments": 0, "errors": []}
+    start = reddit.requests  # the client may be shared, and outlive this pass
     for sub in cfg.subreddits:
         try:
             posts = fetch_hot(reddit, sub, cfg.posts_per_sub)
@@ -112,7 +119,7 @@ def scrape(cfg: Config, store: Store, reddit: Reddit) -> dict:
         summary["hot_posts"] += len(posts)
         log.info("r/%s: %d hot posts", sub, len(posts))
 
-    due = store.threads_due(cfg.refetch_hours, cfg.hot_window_hours)
+    due = store.threads_due(cfg.refetch_hours, cfg.hot_window_hours, subreddits=cfg.subreddits)
     log.info("%d threads due", len(due))
     for i, row in enumerate(due, 1):
         try:
@@ -128,7 +135,7 @@ def scrape(cfg: Config, store: Store, reddit: Reddit) -> dict:
             "[%d/%d] %s: %d/%s comments (+%d requests) %s",
             i, len(due), row["id"], len(comments), post.comment_count, extra, post.title[:50],
         )
-    summary["requests"] = reddit.requests
+    summary["requests"] = reddit.requests - start
     summary["pruned"] = store.prune(cfg.retention_days)
     if summary["pruned"]["posts"]:
         log.info("retention: deleted %(posts)d posts and %(comments)d comments", summary["pruned"])

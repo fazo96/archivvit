@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Not available · archivvit{% endblock %}
+{% block main %}
+<article class="card">
+  <h1>Not available here</h1>
+  <p>{{ message or "archivvit shows subreddits and their posts and comments; this Reddit page isn't one of those." }}</p>
+  <p class="muted small">
+    <a href="/">Home</a> · <a class="copy-link" href="https://www.reddit.com{{ request.full_path.rstrip('?') }}">copy the reddit.com link</a>
+  </p>
+</article>
+{% endblock %}

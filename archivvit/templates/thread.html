@@ -1,10 +1,12 @@
 {% extends "base.html" %}
+{% from "_fetch.html" import fetch_button, job_status, refresh_while %}
 {% set sub = post.subreddit %}
 {% block title %}{{ post.title }} · r/{{ sub }}{% endblock %}
+{% block head %}{{ refresh_while(thread_job, comment_job) }}{% endblock %}
 
 {% macro comments(nodes) %}
 {% for n in nodes %}
-<details class="comment" id="{{ n.c.id }}" open>
+<details class="comment{% if n.c.id == focus_id %} focus{% endif %}" id="{{ n.c.id }}" open>
   <summary>
     <span class="author">{{ n.c.author or '[deleted]' }}</span>
     <span>▲ {{ n.c.score if n.c.score is not none else '?' }}</span>
@@ -49,7 +51,19 @@
     <button class="link" name="keep" value="1">Keep forever</button>
     {% endif %}
   </form>
+  {{ job_status(thread_job) }}
+  {% if not (thread_job and thread_job.active) %}
+  {{ fetch_button('thread', post.id[3:], 'Refresh from Reddit' if post.last_thread_fetch else 'Fetch comments from Reddit') }}
+  {% endif %}
 </article>
+
+{% if focus_missing %}
+<section class="card">
+  <p>The linked comment isn't in the archive{% if post.comment_count and post.archived_comments < post.comment_count %}: this big thread was only partly fetched{% endif %}.</p>
+  {{ job_status(comment_job) }}
+  {% if not (comment_job and comment_job.active) %}{{ fetch_button('comment', post.id[3:] ~ '/' ~ focus, 'Fetch this comment') }}{% endif %}
+</section>
+{% endif %}
 
 <section class="comments">
   <nav class="sort">
@@ -60,4 +74,7 @@
   </nav>
   {% if tree %}{{ comments(tree) }}{% else %}<p class="muted">No comments archived.</p>{% endif %}
 </section>
+{% if focus_id and not focus_missing %}
+<script>document.getElementById("{{ focus_id }}").scrollIntoView({ block: "center" });</script>
+{% endif %}
 {% endblock %}

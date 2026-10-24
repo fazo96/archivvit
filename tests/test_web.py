@@ -70,8 +70,11 @@ def test_subreddit_page(client):
     assert "/r/NixOS/comments/aaa/" in html
 
 
-def test_unknown_subreddit_404(client):
-    assert client.get("/r/nope/").status_code == 404
+def test_unknown_subreddit_offers_fetch_and_add(client):
+    html = client.get("/r/nope/").get_data(as_text=True)
+    assert "isn't one of your subreddits" in html
+    assert 'name="kind" value="hot"' in html and "Add to my subreddits" in html
+    assert client.get("/r/bad!name/").status_code == 404
 
 
 def test_thread_page(client):
@@ -88,8 +91,10 @@ def test_thread_sort_old(client):
     assert html.index("five") < html.index("nine")  # same created time: stable, insertion order
 
 
-def test_missing_thread_404(client):
-    assert client.get("/r/NixOS/comments/zzz/").status_code == 404
+def test_missing_thread_offers_fetch(client):
+    html = client.get("/r/NixOS/comments/zzz/some_slug/").get_data(as_text=True)
+    assert "isn't in the archive" in html
+    assert 'name="kind" value="thread"' in html and 'name="target" value="zzz"' in html
 
 
 def test_settings_get_and_save(client, tmp_path):

@@ -73,8 +73,9 @@ def now() -> str:
 
 
 class Store:
-    def __init__(self, path: Path | str):
-        self.db = sqlite3.connect(path, timeout=30)
+    def __init__(self, path: Path | str, threadsafe: bool = False):
+        # threadsafe: for a connection the caller serializes itself (the shared client's log).
+        self.db = sqlite3.connect(path, timeout=30, check_same_thread=not threadsafe)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
@@ -120,7 +121,9 @@ class Store:
                 [(at, subreddit, i, p.id, p.score, p.comment_count) for i, p in enumerate(posts)],
             )
 
-    def record_thread(self, post: Post | None, post_id: str, comments: list[Comment], at: str | None = None):
+    def record_thread(self, post: Post | None, post_id: str, comments: list[Comment], at: str | None = None,
+                      count: bool = True):
+        """Save a thread's post and comments; `count` marks it as a (scheduled) thread fetch."""
         at = at or now()
         with self.db:
             if post:
@@ -143,6 +146,8 @@ class Store:
                     for c in comments
                 ],
             )
+            if not count:
+                return
             self.db.execute(
                 """
                 UPDATE posts SET thread_fetches = thread_fetches + 1,
@@ -152,8 +157,10 @@ class Store:
                 {"at": at, "id": post_id},
             )
 
-    def threads_due(self, schedule_hours: list[float], hot_window_hours: float, at: str | None = None):
-        """Posts seen in hot recently whose next thread fetch is due.
+    def threads_due(self, schedule_hours: list[float], hot_window_hours: float, at: str | None = None,
+                    subreddits: list[str] | None = None):
+        """Posts seen in hot recently whose next thread fetch is due. With `subreddits`, only
+        theirs: a one-off hot fetch of another subreddit does not schedule its threads.
 
         Fetch 0 happens as soon as a post is seen; fetch i (i >= 1) once
         schedule_hours[i-1] hours have passed since fetch 0.
@@ -167,7 +174,10 @@ class Store:
             ((t - timedelta(hours=hot_window_hours)).isoformat(timespec="seconds"),),
         ).fetchall()
         due = []
+        wanted = {s.lower() for s in subreddits} if subreddits is not None else None
         for r in rows:
+            if wanted is not None and r["subreddit"].lower() not in wanted:
+                continue
             n = r["thread_fetches"]
             if n == 0:
                 due.append(r)
@@ -198,7 +208,7 @@ class Store:
         with self.db:
             if retention_days > 0:
                 cutoff = (t - timedelta(days=retention_days)).isoformat(timespec="seconds")
-                old = "SELECT id FROM posts WHERE pinned = 0 AND coalesce(last_seen_hot, last_thread_fetch, first_seen) < ?"
+                old = "SELECT id FROM posts WHERE pinned = 0 AND max(coalesce(last_seen_hot, ''), coalesce(last_thread_fetch, ''), first_seen) < ?"
                 out["comments"] = self.db.execute(f"DELETE FROM comments WHERE post_id IN ({old})", (cutoff,)).rowcount
                 out["posts"] = self.db.execute(f"DELETE FROM posts WHERE id IN ({old})", (cutoff,)).rowcount
                 self.db.execute("DELETE FROM hot_snapshots WHERE taken_at < ?", (cutoff,))

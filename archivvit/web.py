@@ -173,6 +173,14 @@ def create_app(data_dir: Path, scheduler=None) -> Flask:
             reddit_url="https://www.reddit.com" + post["permalink"],
         )
 
+    @app.post("/r/<sub>/comments/<pid>/keep")
+    def keep(sub, pid):
+        post = store().post("t3_" + pid)
+        if post is None:
+            abort(404)
+        store().set_pinned(post["id"], request.form.get("keep") == "1")
+        return redirect(url_for("thread", sub=post["subreddit"], pid=pid))
+
     @app.route("/settings", methods=["GET", "POST"])
     def settings():
         c = cfg()

@@ -76,7 +76,7 @@ def test_unknown_subreddit_404(client):
 
 def test_thread_page(client):
     html = client.get("/r/NixOS/comments/aaa/post/").get_data(as_text=True)
-    assert "<script>" not in html
+    assert "alert(1)" not in html
     assert 'href="/r/NixOS/comments/bbb/"' in html  # archived thread → local
     assert 'href="https://www.reddit.com/u/carol"' in html  # other relative links → Reddit
     # top sort: score 9 before score 5, the reply right under its parent
@@ -97,7 +97,7 @@ def test_settings_get_and_save(client, tmp_path):
     r = client.post("/settings", data={
         "subreddits": "NixOS\nlinux", "posts_per_sub": "10", "scrape_interval_minutes": "30",
         "refetch_hours": "3", "hot_window_hours": "12", "max_thread_requests": "20",
-        "min_delay": "2", "max_delay": "4",
+        "min_delay": "2", "max_delay": "4", "retention_days": "0",
     })
     assert r.status_code == 302
     assert json.loads((tmp_path / "settings.json").read_text())["subreddits"] == ["NixOS", "linux"]
@@ -108,7 +108,7 @@ def test_settings_errors_keep_input(client, tmp_path):
     r = client.post("/settings", data={"subreddits": "NixOS\nbad name!", "posts_per_sub": "10",
                                        "scrape_interval_minutes": "30", "refetch_hours": "3",
                                        "hot_window_hours": "12", "max_thread_requests": "20",
-                                       "min_delay": "2", "max_delay": "4"})
+                                       "min_delay": "2", "max_delay": "4", "retention_days": "0"})
     html = r.get_data(as_text=True)
     assert r.status_code == 200 and "is not a subreddit name" in html and "bad name!" in html
     assert json.loads((tmp_path / "settings.json").read_text())["subreddits"] == ["NixOS", "linux", "empty"]
@@ -116,3 +116,20 @@ def test_settings_errors_keep_input(client, tmp_path):
 
 def test_renderer_linked_ids():
     assert Renderer.linked_ids('<a href="https://www.reddit.com/r/x/comments/abc/t/">', None) == ["t3_abc"]
+
+
+def test_copy_links_are_reddit_urls(client):
+    thread = client.get("/r/NixOS/comments/aaa/post/").get_data(as_text=True)
+    assert 'class="copy-link" href="https://www.reddit.com/r/NixOS/comments/aaa/post/"' in thread
+    home = client.get("/").get_data(as_text=True)
+    assert 'class="copy-link" href="https://www.reddit.com/r/linux/comments/lll/post/"' in home
+
+
+def test_keep_toggle(client):
+    r = client.post("/r/NixOS/comments/aaa/keep", data={"keep": "1"})
+    assert r.status_code == 302
+    html = client.get("/r/NixOS/comments/aaa/").get_data(as_text=True)
+    assert "Kept: never deleted" in html
+    client.post("/r/NixOS/comments/aaa/keep", data={"keep": "0"})
+    assert "Keep forever" in client.get("/r/NixOS/comments/aaa/").get_data(as_text=True)
+    assert client.post("/r/NixOS/comments/zzz/keep", data={"keep": "1"}).status_code == 404

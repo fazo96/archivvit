@@ -1,4 +1,4 @@
-"""SQLite archive. Rows are only ever added or refreshed, never deleted."""
+"""SQLite archive. Rows are added or refreshed; only `prune` deletes, by retention."""
 
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS posts (
   last_seen_hot TEXT,
   thread_fetches INTEGER NOT NULL DEFAULT 0,
   first_thread_fetch TEXT,
-  last_thread_fetch TEXT
+  last_thread_fetch TEXT,
+  pinned INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS posts_sub_seen ON posts (subreddit, last_seen_hot);
 
@@ -77,6 +78,13 @@ class Store:
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
+        self._migrate()
+
+    def _migrate(self):
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(posts)")}
+        if "pinned" not in cols:
+            with self.db:
+                self.db.execute("ALTER TABLE posts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
 
     def close(self):
         self.db.close()
@@ -177,6 +185,26 @@ class Store:
                 "INSERT INTO fetch_log VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (now(), method, url, status, nbytes, ms, remaining, note),
             )
+
+    def set_pinned(self, post_id: str, pinned: bool):
+        with self.db:
+            self.db.execute("UPDATE posts SET pinned = ? WHERE id = ?", (int(pinned), post_id))
+
+    def prune(self, retention_days: int, log_days: int = 30, at: str | None = None) -> dict:
+        """Delete posts last in hot (or fetched) more than `retention_days` ago, unless kept,
+        with their comments; hot snapshots that old; and request log entries past `log_days`."""
+        t = datetime.fromisoformat(at or now())
+        out = {"posts": 0, "comments": 0}
+        with self.db:
+            if retention_days > 0:
+                cutoff = (t - timedelta(days=retention_days)).isoformat(timespec="seconds")
+                old = "SELECT id FROM posts WHERE pinned = 0 AND coalesce(last_seen_hot, last_thread_fetch, first_seen) < ?"
+                out["comments"] = self.db.execute(f"DELETE FROM comments WHERE post_id IN ({old})", (cutoff,)).rowcount
+                out["posts"] = self.db.execute(f"DELETE FROM posts WHERE id IN ({old})", (cutoff,)).rowcount
+                self.db.execute("DELETE FROM hot_snapshots WHERE taken_at < ?", (cutoff,))
+            log_cutoff = (t - timedelta(days=log_days)).isoformat(timespec="seconds")
+            self.db.execute("DELETE FROM fetch_log WHERE at < ?", (log_cutoff,))
+        return out
 
     # Reads for the web UI.
 

@@ -129,4 +129,7 @@ def scrape(cfg: Config, store: Store, reddit: Reddit) -> dict:
             i, len(due), row["id"], len(comments), post.comment_count, extra, post.title[:50],
         )
     summary["requests"] = reddit.requests
+    summary["pruned"] = store.prune(cfg.retention_days)
+    if summary["pruned"]["posts"]:
+        log.info("retention: deleted %(posts)d posts and %(comments)d comments", summary["pruned"])
     return summary

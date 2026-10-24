@@ -10,7 +10,9 @@
       <span title="archived / total comments">{{ p.archived_comments }}{% if p.comment_count is not none and p.comment_count != p.archived_comments %}/{{ p.comment_count }}{% endif %} comments</span>
       <span>{{ p.created|ago }}</span>
       {% if p.author %}<span>u/{{ p.author }}</span>{% endif %}
+      {% if p.pinned %}<span class="kept">kept</span>{% endif %}
       {% if p.post_type and p.post_type != 'text' %}<span class="kind">{{ p.post_type }}{% if p.domain and not p.domain.startswith('self.') %} · {{ p.domain }}{% endif %}</span>{% endif %}
+      <a class="copy-link" href="https://www.reddit.com{{ p.permalink }}">copy link</a>
     </div>
   </div>
 </li>

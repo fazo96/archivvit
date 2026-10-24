@@ -8,6 +8,7 @@ def form(**kw):
         "subreddits": "NixOS\nr/linux\n/r/selfhosted/\nnixos",
         "posts_per_sub": "25", "scrape_interval_minutes": "60", "refetch_hours": "12, 2",
         "hot_window_hours": "24", "max_thread_requests": "30", "min_delay": "2", "max_delay": "5",
+        "retention_days": "90",
     }
     return {**base, **kw}
 

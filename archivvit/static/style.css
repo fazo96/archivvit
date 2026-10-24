@@ -139,6 +139,17 @@ code { font-size: 0.85em; overflow-wrap: anywhere; }
 }
 .meta .flair { margin-left: 0; }
 .meta .sub { color: var(--text); font-weight: 600; }
+.copy-link { color: var(--muted); }
+.copy-link:hover { color: var(--accent); }
+.kept { color: var(--ok); }
+form.inline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.5rem; margin: 0; font-size: 0.875rem; }
+button.link {
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font-weight: 400;
+}
+button.link:hover { text-decoration: underline; }
 
 .pager {
   display: flex;

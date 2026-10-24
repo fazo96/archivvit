@@ -55,7 +55,7 @@ pkgs.testers.runNixOSTest {
     machine.succeed(
         "curl -sf -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/settings "
         "-d subreddits=NixOS%0Alinux -d posts_per_sub=5 -d scrape_interval_minutes=30 "
-        "-d refetch_hours=2 -d hot_window_hours=24 -d max_thread_requests=10 -d min_delay=1 -d max_delay=2 "
+        "-d refetch_hours=2 -d hot_window_hours=24 -d max_thread_requests=10 -d min_delay=1 -d max_delay=2 -d retention_days=30 "
         "| grep -q 302"
     )
     machine.succeed("grep -q linux /var/lib/archivvit/settings.json")

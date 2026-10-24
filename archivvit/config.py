@@ -21,6 +21,9 @@ class Config:
     hot_window_hours: float = 24
     # Cap on extra requests (other sorts, more replies, continue thread) per thread fetch.
     max_thread_requests: int = 30
+    # Delete posts (and their comments) this many days after they were last in hot or
+    # fetched; kept posts are never deleted. 0 keeps everything.
+    retention_days: int = 0
     # Random pause between requests, seconds.
     min_delay: float = 2.0
     max_delay: float = 5.0
@@ -103,6 +106,7 @@ def update(cfg: Config, form: dict[str, str]) -> list[str]:
     num("posts_per_sub", int, 1, 100)
     num("hot_window_hours", float, 1)
     num("max_thread_requests", int, 0, 500)
+    num("retention_days", int, 0, 36500)
     num("min_delay", float, 0.5)
     num("max_delay", float, 0.5)
     if "min_delay" in new and "max_delay" in new and new["max_delay"] < new["min_delay"]:

@@ -60,3 +60,44 @@ def test_listing_does_not_clear_body():
     s.record_thread(post(body_html="<p>full</p>"), "t3_a", [])
     s.record_hot("NixOS", [post(body_html=None, score=50)])
     assert tuple(s.db.execute("SELECT body_html, score FROM posts").fetchone()) == ("<p>full</p>", 50)
+
+
+def test_prune_by_retention_keeps_pinned_and_recent():
+    s = Store(":memory:")
+    s.record_hot("NixOS", [post("t3_old"), post("t3_kept")], at="2026-09-01T00:00:00+00:00")
+    s.record_thread(None, "t3_old", [comment("t1_o")], at="2026-09-01T00:10:00+00:00")
+    s.db.execute("UPDATE comments SET post_id = 't3_old'")
+    s.set_pinned("t3_kept", True)
+    s.record_hot("NixOS", [post("t3_new")], at="2026-10-20T00:00:00+00:00")
+    s.log_fetch("GET", "u", 200, 1, 1, None)
+    s.db.execute("UPDATE fetch_log SET at = '2026-08-01T00:00:00+00:00'")
+    out = s.prune(30, at="2026-10-23T00:00:00+00:00")
+    assert out == {"posts": 1, "comments": 1}
+    assert {r[0] for r in s.db.execute("SELECT id FROM posts")} == {"t3_kept", "t3_new"}
+    assert s.db.execute("SELECT count(*) FROM fetch_log").fetchone()[0] == 0
+    assert s.db.execute("SELECT count(DISTINCT taken_at) FROM hot_snapshots").fetchone()[0] == 1
+
+
+def test_prune_zero_keeps_everything():
+    s = Store(":memory:")
+    s.record_hot("NixOS", [post("t3_old")], at="2020-01-01T00:00:00+00:00")
+    assert s.prune(0, at="2026-10-23T00:00:00+00:00") == {"posts": 0, "comments": 0}
+    assert s.db.execute("SELECT count(*) FROM posts").fetchone()[0] == 1
+
+
+def test_migrates_old_schema(tmp_path):
+    import sqlite3
+
+    db = tmp_path / "a.sqlite"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE posts (id TEXT PRIMARY KEY, subreddit TEXT NOT NULL, title TEXT NOT NULL, author TEXT,"
+                " score INTEGER, upvote_ratio REAL, comment_count INTEGER, created TEXT, post_type TEXT,"
+                " permalink TEXT NOT NULL, url TEXT, domain TEXT, flair TEXT, body_html TEXT, first_seen TEXT NOT NULL,"
+                " last_seen_hot TEXT, thread_fetches INTEGER NOT NULL DEFAULT 0, first_thread_fetch TEXT,"
+                " last_thread_fetch TEXT)")
+    con.commit()
+    con.close()
+    s = Store(db)
+    s.record_hot("NixOS", [post()])
+    s.set_pinned("t3_a", True)
+    assert s.db.execute("SELECT pinned FROM posts").fetchone()[0] == 1

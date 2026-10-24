@@ -25,5 +25,20 @@
     {% endwith %}
     {% block main %}{% endblock %}
   </main>
+  <script>
+    // "copy link" copies the reddit.com URL; without JavaScript it is a plain link to long-press.
+    document.addEventListener("click", async (e) => {
+      const a = e.target.closest("a.copy-link");
+      if (!a || !navigator.clipboard) return;
+      e.preventDefault();
+      try {
+        await navigator.clipboard.writeText(a.href);
+        a.textContent = "copied";
+      } catch {
+        a.textContent = "copy failed";
+      }
+      setTimeout(() => (a.textContent = "copy link"), 1500);
+    });
+  </script>
 </body>
 </html>

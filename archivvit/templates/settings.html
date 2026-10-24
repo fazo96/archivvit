@@ -68,6 +68,13 @@
     <input type="number" name="hot_window_hours" min="1" step="any" value="{{ val('hot_window_hours', cfg.hot_window_hours) }}">
   </label>
 
+  <h2>Retention</h2>
+  <label>
+    Keep posts for (days, 0 = forever)
+    <input type="number" name="retention_days" min="0" max="36500" value="{{ val('retention_days', cfg.retention_days) }}">
+    <small>Counted from the last time a post was in hot or fetched. Posts marked "Keep forever" stay. Checked after each scrape pass.</small>
+  </label>
+
   <h2>Politeness</h2>
   <div class="row">
     <label>

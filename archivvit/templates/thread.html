@@ -4,12 +4,13 @@
 
 {% macro comments(nodes) %}
 {% for n in nodes %}
-<details class="comment" open>
+<details class="comment" id="{{ n.c.id }}" open>
   <summary>
     <span class="author">{{ n.c.author or '[deleted]' }}</span>
     <span>▲ {{ n.c.score if n.c.score is not none else '?' }}</span>
     <span>{{ n.c.created|ago }}</span>
     {% if n.children %}<span class="replies">{{ n.children|length }} {{ 'reply' if n.children|length == 1 else 'replies' }}</span>{% endif %}
+    {% if n.c.permalink %}<a class="copy-link" href="https://www.reddit.com{{ n.c.permalink }}">copy link</a>{% endif %}
   </summary>
   <div class="body md">{% if n.c.body_html %}{{ render(n.c.body_html) }}{% else %}<p class="muted">[deleted]</p>{% endif %}</div>
   {% if n.children %}<div class="children">{{ comments(n.children) }}</div>{% endif %}
@@ -26,6 +27,7 @@
     <span>▲ {{ post.score if post.score is not none else '?' }}{% if post.upvote_ratio %} ({{ (post.upvote_ratio * 100)|round|int }}%){% endif %}</span>
     <span>{{ post.created|ago }}</span>
     {% if post.author %}<span>u/{{ post.author }}</span>{% endif %}
+    <a class="copy-link" href="{{ reddit_url }}">copy link</a>
   </div>
 
   {% if post.post_type == 'image' and post.url and (post.domain or '').endswith('redd.it') %}
@@ -37,9 +39,16 @@
   {% if post.body_html %}<div class="body md">{{ render(post.body_html) }}</div>{% endif %}
   <p class="muted small">
     Archived {{ post.archived_comments }}{% if post.comment_count is not none %} of {{ post.comment_count }}{% endif %} comments,
-    last fetched {{ post.last_thread_fetch|ago if post.last_thread_fetch else 'never' }} ·
-    <a href="{{ reddit_url }}" rel="noopener noreferrer nofollow">on Reddit ↗</a>
+    last fetched {{ post.last_thread_fetch|ago if post.last_thread_fetch else 'never' }}
   </p>
+  <form method="post" action="{{ url_for('keep', sub=sub, pid=post.id[3:]) }}" class="inline">
+    {% if post.pinned %}
+    <span class="kept">Kept: never deleted by retention</span>
+    <button class="link" name="keep" value="0">undo</button>
+    {% else %}
+    <button class="link" name="keep" value="1">Keep forever</button>
+    {% endif %}
+  </form>
 </article>
 
 <section class="comments">

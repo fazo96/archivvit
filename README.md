@@ -34,6 +34,13 @@ on demand. It's for one person or a household: there's no login, so keep it on l
 your LAN/VPN or behind an authenticating reverse proxy, and don't make it public. Images and
 videos still load from Reddit's media hosts (`i.redd.it`, `v.redd.it`) when you view them.
 
+| Desktop | Mobile |
+|---|---|
+| ![Home feed on desktop](docs/screenshots/desktop-home.png) | ![Home feed on mobile](docs/screenshots/mobile-home.png) |
+| ![A thread on desktop](docs/screenshots/desktop-thread.png) | ![A thread on mobile](docs/screenshots/mobile-thread.png) |
+
+![Settings page](docs/screenshots/desktop-settings.png)
+
 ## Docker
 
 ```sh

@@ -1,5 +1,6 @@
 """SQLite archive. Rows are added or refreshed; only `prune` deletes, by retention."""
 
+import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -27,7 +28,8 @@ CREATE TABLE IF NOT EXISTS posts (
   thread_fetches INTEGER NOT NULL DEFAULT 0,
   first_thread_fetch TEXT,
   last_thread_fetch TEXT,
-  pinned INTEGER NOT NULL DEFAULT 0
+  pinned INTEGER NOT NULL DEFAULT 0,
+  gallery TEXT
 );
 CREATE INDEX IF NOT EXISTS posts_sub_seen ON posts (subreddit, last_seen_hot);
 
@@ -86,6 +88,9 @@ class Store:
         if "pinned" not in cols:
             with self.db:
                 self.db.execute("ALTER TABLE posts ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0")
+        if "gallery" not in cols:
+            with self.db:
+                self.db.execute("ALTER TABLE posts ADD COLUMN gallery TEXT")
 
     def close(self):
         self.db.close()
@@ -95,9 +100,9 @@ class Store:
         self.db.execute(
             """
             INSERT INTO posts (id, subreddit, title, author, score, upvote_ratio, comment_count, created,
-                               post_type, permalink, url, domain, flair, body_html, first_seen, last_seen_hot)
+                               post_type, permalink, url, domain, flair, body_html, gallery, first_seen, last_seen_hot)
             VALUES (:id, :subreddit, :title, :author, :score, :upvote_ratio, :comment_count, :created,
-                    :post_type, :permalink, :url, :domain, :flair, :body_html, :at, :hot)
+                    :post_type, :permalink, :url, :domain, :flair, :body_html, :gallery, :at, :hot)
             ON CONFLICT (id) DO UPDATE SET
               title = excluded.title,
               score = coalesce(excluded.score, score),
@@ -106,9 +111,11 @@ class Store:
               flair = coalesce(excluded.flair, flair),
               url = coalesce(excluded.url, url),
               body_html = coalesce(excluded.body_html, body_html),
+              gallery = coalesce(excluded.gallery, gallery),
               last_seen_hot = coalesce(excluded.last_seen_hot, last_seen_hot)
             """,
-            {**vars(p), "at": at, "hot": at if seen_in_hot else None},
+            {**vars(p), "gallery": json.dumps(p.gallery) if p.gallery else None, "at": at,
+             "hot": at if seen_in_hot else None},
         )
 
     def record_hot(self, subreddit: str, posts: list[Post], at: str | None = None):

@@ -73,6 +73,13 @@ def test_listing_does_not_clear_body():
     assert tuple(s.db.execute("SELECT body_html, score FROM posts").fetchone()) == ("<p>full</p>", 50)
 
 
+def test_gallery_kept_when_page_lacks_it():
+    s = Store(":memory:")
+    s.record_thread(post(gallery=[{"url": "https://i.redd.it/x.png"}]), "t3_a", [])
+    s.record_thread(post(gallery=None), "t3_a", [])
+    assert s.db.execute("SELECT gallery FROM posts").fetchone()[0] == '[{"url": "https://i.redd.it/x.png"}]'
+
+
 def test_prune_by_retention_keeps_pinned_and_recent():
     s = Store(":memory:")
     s.record_hot("NixOS", [post("t3_old"), post("t3_kept")], at="2026-09-01T00:00:00+00:00")
@@ -112,6 +119,7 @@ def test_migrates_old_schema(tmp_path):
     s.record_hot("NixOS", [post()])
     s.set_pinned("t3_a", True)
     assert s.db.execute("SELECT pinned FROM posts").fetchone()[0] == 1
+    assert s.db.execute("SELECT gallery FROM posts").fetchone()[0] is None
 
 
 def test_prune_counts_from_latest_activity():

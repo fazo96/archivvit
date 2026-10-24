@@ -181,6 +181,61 @@ button.secondary { background: var(--accent-soft); color: var(--accent); }
 }
 .link-out { overflow-wrap: anywhere; }
 
+/* Gallery: a horizontal strip that snaps one image at a time; swipe, scroll or use the numbers. */
+.gallery { margin: 0.75rem 0; }
+.gallery-strip {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  border-radius: 0.4rem;
+}
+.gallery-strip > li {
+  position: relative;
+  flex: 0 0 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  scroll-margin-top: 4rem; /* clear of the sticky header when a number link jumps here */
+}
+.gallery-strip img {
+  display: block;
+  max-width: 100%;
+  max-height: 70vh;
+  width: auto;
+  height: auto;
+}
+.gallery-count {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.8rem;
+}
+.gallery-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  font-size: 0.9rem;
+}
+.gallery-nav a {
+  min-width: 2rem;
+  padding: 0.1rem 0.3rem;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 0.3rem;
+}
+
 .md { overflow-wrap: anywhere; }
 .md p { margin: 0.4rem 0; }
 .md img, .md video { max-width: 100%; height: auto; }

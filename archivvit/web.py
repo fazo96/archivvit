@@ -1,3 +1,4 @@
+import json
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
@@ -199,6 +200,7 @@ def create_app(data_dir: Path, scheduler=None, fetcher=None) -> Flask:
         render = Renderer(store().archived_ids(Renderer.linked_ids(post["body_html"], *(r["body_html"] for r in rows))))
         return render_template(
             "thread.html", post=post, tree=comment_tree(rows, sort), sort=sort, render=render,
+            gallery=json.loads(post["gallery"]) if post["gallery"] else None,
             reddit_url="https://www.reddit.com" + post["permalink"], focus=focus, focus_id=focus_id,
             focus_missing=bool(focus_id) and focus_id not in {r["id"] for r in rows},
             thread_job=job(THREAD, pid), comment_job=job(COMMENT, f"{pid}/{focus}") if focus else None,

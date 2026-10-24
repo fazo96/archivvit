@@ -138,3 +138,21 @@ def test_keep_toggle(client):
     client.post("/r/NixOS/comments/aaa/keep", data={"keep": "0"})
     assert "Keep forever" in client.get("/r/NixOS/comments/aaa/").get_data(as_text=True)
     assert client.post("/r/NixOS/comments/zzz/keep", data={"keep": "1"}).status_code == 404
+
+
+def test_gallery_viewer(tmp_path):
+    s = Store(config.load(tmp_path).db_path)
+    items = [{"url": f"https://i.redd.it/{n}.png", "src": f"https://preview.redd.it/{n}.png?width=640&s={n}",
+              "srcset": None, "width": 1600, "height": 1000} for n in ("one", "two")]
+    s.record_thread(post("t3_gal", post_type="gallery", url="https://www.reddit.com/gallery/gal", domain="reddit.com",
+                         permalink="/r/NixOS/comments/gal/post/", gallery=items), "t3_gal", [])
+    s.record_thread(post("t3_old", post_type="gallery", url="https://www.reddit.com/gallery/old", domain="reddit.com",
+                         permalink="/r/NixOS/comments/old/post/"), "t3_old", [])
+    s.close()
+    client = create_app(tmp_path).test_client()
+    html = client.get("/r/NixOS/comments/gal/post/").get_data(as_text=True)
+    assert '<a href="https://i.redd.it/two.png"><img src="https://preview.redd.it/two.png?width=640&amp;s=two"' in html
+    assert '2 / 2' in html and 'href="#g2"' in html
+    # archived before galleries were parsed: still the link to Reddit
+    html = client.get("/r/NixOS/comments/old/post/").get_data(as_text=True)
+    assert 'class="gallery"' not in html and 'href="https://www.reddit.com/gallery/old"' in html

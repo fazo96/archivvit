@@ -76,3 +76,45 @@ def test_challenge_detection():
     assert not parse.is_challenge(load("hot"))
     page = '<html><script>e.elements.namedItem("solution").value=n</script><form></form></html>'
     assert parse.is_challenge(page)
+
+
+# The markup of a real gallery post's thread page, trimmed: the first slide's preview is loaded
+# (src/srcset), later ones are lazy (data-lazy-*); the full image sits in Reddit's lightbox.
+GALLERY = """<html><body>
+<shreddit-post id="t3_gal" view-context="CommentsPage" post-type="gallery" subreddit-name="linux_gaming"
+  post-title="A gallery" permalink="/r/linux_gaming/comments/gal/a_gallery/" content-href="https://www.reddit.com/gallery/gal"
+  domain="reddit.com">
+<gallery-carousel post-id="t3_gal"><ul>
+  <li slot="page-1">
+    <img class="post-background-image-filter" src="https://preview.redd.it/a-v0-one.png?width=640&amp;s=bg">
+    <figure>
+      <img class="non-lightboxed-content" src="https://preview.redd.it/a-v0-one.png?width=640&amp;s=1"
+        srcset="https://preview.redd.it/a-v0-one.png?width=320&amp;s=0 320w, https://preview.redd.it/a-v0-one.png?width=640&amp;s=1 640w"
+        width="1600" height="1000">
+      <div class="lightboxed-content hidden"><zoomable-img><img src="https://i.redd.it/one.png"></zoomable-img></div>
+    </figure>
+  </li>
+  <li slot="page-2">
+    <figure>
+      <img data-lazy-src="https://preview.redd.it/a-v0-two.png?width=640&amp;s=2"
+        data-lazy-srcset="https://preview.redd.it/a-v0-two.png?width=640&amp;s=2 640w" width="800" height="1200">
+      <div class="lightboxed-content hidden"><zoomable-img><img src="https://i.redd.it/two.png"></zoomable-img></div>
+    </figure>
+  </li>
+  <li slot="page-3"><figure><img src="javascript:alert(1)"></figure></li>
+</ul></gallery-carousel>
+</shreddit-post>
+</body></html>"""
+
+
+def test_gallery():
+    post = parse.parse_comments(GALLERY).post
+    assert post.gallery == [
+        {"url": "https://i.redd.it/one.png", "src": "https://preview.redd.it/a-v0-one.png?width=640&s=1",
+         "srcset": "https://preview.redd.it/a-v0-one.png?width=320&s=0 320w, "
+                   "https://preview.redd.it/a-v0-one.png?width=640&s=1 640w",
+         "width": 1600, "height": 1000},
+        {"url": "https://i.redd.it/two.png", "src": "https://preview.redd.it/a-v0-two.png?width=640&s=2",
+         "srcset": "https://preview.redd.it/a-v0-two.png?width=640&s=2 640w", "width": 800, "height": 1200},
+    ]
+    assert parse.parse_comments(load("thread")).post.gallery is None

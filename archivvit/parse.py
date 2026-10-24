@@ -8,7 +8,7 @@ of the document tree. libxml2 parses straight through them.
 import re
 from dataclasses import dataclass, field
 from html import unescape
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import lxml.html
 from cssselect import HTMLTranslator
@@ -33,6 +33,7 @@ class Post:
     domain: str | None
     flair: str | None = None
     body_html: str | None = None
+    gallery: list[dict] | None = None  # thread pages only: [{url, src, srcset, width, height}]
 
 
 @dataclass
@@ -133,6 +134,31 @@ def _post(el) -> Post:
     )
 
 
+def _media(url: str | None) -> bool:
+    return bool(url) and url.startswith("https://") and (urlsplit(url).hostname or "").endswith(".redd.it")
+
+
+def _gallery(el) -> list[dict] | None:
+    """A gallery post's images: one `<li slot="page-N">` each, a preview.redd.it <img> in the
+    <figure> (later ones lazy, as data-lazy-*) and the full-size i.redd.it one for Reddit's lightbox."""
+    items = []
+    for li in el.cssselect('gallery-carousel li[slot^="page-"]'):
+        imgs = li.cssselect("figure img")
+        if not imgs:
+            continue
+        a = imgs[0].attrib
+        src = a.get("src") or a.get("data-lazy-src")
+        srcset = a.get("srcset") or a.get("data-lazy-srcset") or ""
+        full = next((i.get("src") for i in imgs[1:] if _media(i.get("src"))), src)
+        if not (_media(src) and _media(full)):
+            continue
+        if not all(_media(c.split()[0]) for c in srcset.split(",") if c.strip()):
+            srcset = ""
+        items.append({"url": full, "src": src, "srcset": srcset or None,
+                      "width": _int(a.get("width")), "height": _int(a.get("height"))})
+    return items or None
+
+
 def parse_listing(html: str, sort: str = "hot") -> Listing:
     """A subreddit page or a community-more-posts partial. Ads are separate elements and skipped."""
     doc = _doc(html)
@@ -151,6 +177,7 @@ def parse_comments(html: str) -> Fragment:
     main = [el for el in _select(doc, "shreddit-post") if el.get("view-context") == "CommentsPage"]
     if main:
         frag.post = _post(main[0])
+        frag.post.gallery = _gallery(main[0])
     for el in _select(doc, "shreddit-comment"):
         a = el.attrib
         cid = a.get("thingid")

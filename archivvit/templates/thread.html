@@ -32,7 +32,22 @@
     <a class="copy-link" href="{{ reddit_url }}">copy link</a>
   </div>
 
-  {% if post.post_type == 'image' and post.url and (post.domain or '').endswith('redd.it') %}
+  {% if gallery %}
+  <div class="gallery">
+    <ul class="gallery-strip">
+      {% for g in gallery %}
+      <li id="g{{ loop.index }}">
+        <a href="{{ g.url }}"><img src="{{ g.src }}"{% if g.srcset %} srcset="{{ g.srcset }}" sizes="(min-width: 50rem) 48rem, 100vw"{% endif %}
+          {%- if g.width and g.height %} width="{{ g.width }}" height="{{ g.height }}"{% endif %} alt="Image {{ loop.index }}" loading="{{ 'eager' if loop.first else 'lazy' }}"></a>
+        {% if gallery|length > 1 %}<span class="gallery-count">{{ loop.index }} / {{ gallery|length }}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% if gallery|length > 1 %}
+    <nav class="gallery-nav">{% for g in gallery %}<a href="#g{{ loop.index }}">{{ loop.index }}</a>{% endfor %}</nav>
+    {% endif %}
+  </div>
+  {% elif post.post_type == 'image' and post.url and (post.domain or '').endswith('redd.it') %}
   <a href="{{ post.url }}"><img class="post-image" src="{{ post.url }}" alt="" loading="lazy"></a>
   {% elif post.url and post.post_type != 'text' and post.url != reddit_url %}
   <p class="link-out"><a href="{{ post.url }}" rel="noopener noreferrer nofollow">{{ post.post_type or 'link' }} · {{ post.domain or post.url }} ↗</a></p>

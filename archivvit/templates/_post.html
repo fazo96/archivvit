@@ -1,10 +1,11 @@
-{% macro post_row(p, rank=None) %}
+{% macro post_row(p, rank=None, show_sub=false) %}
 <li class="post">
   {% if rank is not none %}<span class="rank">{{ rank + 1 }}</span>{% endif %}
   <div class="post-main">
     <a class="post-title" href="{{ url_for('thread', sub=p.subreddit, pid=p.id[3:]) }}">{{ p.title }}</a>
     {% if p.flair %}<span class="flair">{{ p.flair }}</span>{% endif %}
     <div class="meta">
+      {% if show_sub %}<a class="sub" href="{{ url_for('subreddit', sub=p.subreddit) }}">r/{{ p.subreddit }}</a>{% endif %}
       <span title="score">▲ {{ p.score if p.score is not none else '?' }}</span>
       <span title="archived / total comments">{{ p.archived_comments }}{% if p.comment_count is not none and p.comment_count != p.archived_comments %}/{{ p.comment_count }}{% endif %} comments</span>
       <span>{{ p.created|ago }}</span>

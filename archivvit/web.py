@@ -11,6 +11,7 @@ from . import config
 from .store import Store
 
 PAGE_SIZE = 25
+HOME_PAGE_SIZE = 50
 THREAD_LINK = re.compile(r"^(?:https?://(?:www\.|old\.|new\.|np\.)?reddit\.com)?/r/([^/]+)/comments/([a-z0-9]+)")
 
 
@@ -73,6 +74,14 @@ class Renderer:
         ))
 
 
+def interleave(lists):
+    """Each list's first item, then each one's second, and so on."""
+    out = []
+    for i in range(max(map(len, lists), default=0)):
+        out += [lst[i] for lst in lists if i < len(lst)]
+    return out
+
+
 def comment_tree(rows, sort: str):
     ids = {r["id"] for r in rows}
     children = defaultdict(list)
@@ -128,7 +137,15 @@ def create_app(data_dir: Path, scheduler=None) -> Flask:
         subs = cfg().subreddits or store().subreddits()
         if not subs:
             return redirect(url_for("settings"))
-        return redirect(url_for("subreddit", sub=subs[0]))
+        page = max(request.args.get("page", 1, type=int), 1)
+        hot = [store().latest_hot(s) for s in subs]
+        posts = interleave([posts for _, posts in hot])
+        start = (page - 1) * HOME_PAGE_SIZE
+        return render_template(
+            "home.html", posts=posts[start:start + HOME_PAGE_SIZE], start=start, page=page,
+            has_next=len(posts) > start + HOME_PAGE_SIZE,
+            taken_at=max((t for t, _ in hot if t), default=None), n_subs=sum(1 for _, p in hot if p),
+        )
 
     @app.get("/r/<sub>/")
     def subreddit(sub):

@@ -10,6 +10,7 @@
   <header class="top">
     <a class="brand" href="/">archivvit</a>
     <nav class="subs">
+      <a href="/"{% if request.endpoint == 'index' %} aria-current="page"{% endif %}>Home</a>
       {% for s in nav_subs %}
       <a href="{{ url_for('subreddit', sub=s) }}"{% if sub is defined and sub|lower == s|lower %} aria-current="page"{% endif %}>r/{{ s }}</a>
       {% endfor %}

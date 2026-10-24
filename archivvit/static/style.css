@@ -138,6 +138,7 @@ code { font-size: 0.85em; overflow-wrap: anywhere; }
   vertical-align: middle;
 }
 .meta .flair { margin-left: 0; }
+.meta .sub { color: var(--text); font-weight: 600; }
 
 .pager {
   display: flex;

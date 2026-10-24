@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "_post.html" import post_row %}
+{% block main %}
+<h1>Home</h1>
+{% if posts %}
+<p class="muted">Hot from {{ n_subs }} subreddit{{ 's' if n_subs != 1 }}, mixed by rank, as of {{ taken_at|ago }}</p>
+<ol class="posts">
+  {% for p in posts %}{{ post_row(p, start + loop.index0, show_sub=true) }}{% endfor %}
+</ol>
+{% if page > 1 or has_next %}
+<nav class="pager">
+  {% if page > 1 %}<a href="{{ url_for('index', page=page - 1) }}">← Previous</a>{% endif %}
+  {% if has_next %}<a href="{{ url_for('index', page=page + 1) }}">More →</a>{% endif %}
+</nav>
+{% endif %}
+{% elif page == 1 %}
+<p class="muted">Nothing archived yet. The next scrape pass will fetch it, or start one from <a href="{{ url_for('settings') }}">Settings</a>.</p>
+{% endif %}
+{% endblock %}

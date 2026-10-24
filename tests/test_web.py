@@ -22,9 +22,11 @@ def comment(cid, parent=None, score=1, body="<p>hi</p>"):
 
 @pytest.fixture
 def client(tmp_path):
-    (tmp_path / "settings.json").write_text(json.dumps({"subreddits": ["NixOS"]}))
+    (tmp_path / "settings.json").write_text(json.dumps({"subreddits": ["NixOS", "linux", "empty"]}))
     s = Store(config.load(tmp_path).db_path)
     s.record_hot("NixOS", [post("t3_aaa"), post("t3_bbb", title="Second <b>post</b>")])
+    s.record_hot("linux", [post("t3_lll", subreddit="linux", title="Linux first", score=9000,
+                                permalink="/r/linux/comments/lll/post/")])
     s.record_thread(
         post("t3_aaa", body_html='<p>see <a href="/r/NixOS/comments/bbb/x/">this</a> and '
                                  '<a href="/u/carol">carol</a><script>alert(1)</script></p>'),
@@ -38,9 +40,27 @@ def client(tmp_path):
     return app.test_client()
 
 
-def test_index_redirects_to_first_subreddit(client):
-    r = client.get("/")
-    assert r.status_code == 302 and r.headers["Location"].endswith("/r/NixOS/")
+def test_home_interleaves_by_rank(client):
+    html = client.get("/").get_data(as_text=True)
+    # NixOS #1, linux #1, NixOS #2: rank decides, not score; the empty subreddit is skipped
+    assert html.index("Post t3_aaa") < html.index("Linux first") < html.index("Second")
+    assert "Hot from 2 subreddits" in html
+    assert 'href="/r/linux/">r/linux</a>' in html
+    assert 'href="/" aria-current="page">Home' in html
+
+
+def test_home_paging(client, monkeypatch):
+    monkeypatch.setattr("archivvit.web.HOME_PAGE_SIZE", 2)
+    first = client.get("/").get_data(as_text=True)
+    assert "Second" not in first and "?page=2" in first
+    second = client.get("/?page=2").get_data(as_text=True)
+    assert "Second" in second and "Post t3_aaa" not in second and "← Previous" in second
+
+
+def test_home_empty(tmp_path):
+    (tmp_path / "settings.json").write_text(json.dumps({"subreddits": ["NixOS"]}))
+    client = create_app(tmp_path).test_client()
+    assert "Nothing archived yet" in client.get("/").get_data(as_text=True)
 
 
 def test_subreddit_page(client):
@@ -91,7 +111,7 @@ def test_settings_errors_keep_input(client, tmp_path):
                                        "min_delay": "2", "max_delay": "4"})
     html = r.get_data(as_text=True)
     assert r.status_code == 200 and "is not a subreddit name" in html and "bad name!" in html
-    assert json.loads((tmp_path / "settings.json").read_text())["subreddits"] == ["NixOS"]
+    assert json.loads((tmp_path / "settings.json").read_text())["subreddits"] == ["NixOS", "linux", "empty"]
 
 
 def test_renderer_linked_ids():

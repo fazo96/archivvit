@@ -1,9 +1,65 @@
 # archivvit
 
-A local, read-only archive of a few subreddits: their hot pages and the comments on those
-posts, scraped without an account into SQLite and browsed from a small web UI.
+Read your subreddits without Reddit: a self-hosted, logged-out archive with a clean web UI.
 
-Why and how Reddit can still be read logged out: [docs/reddit-access.md](docs/reddit-access.md).
+If you used redlib or libreddit until Reddit blocked them, this is a different way to get the
+same thing. archivvit doesn't proxy Reddit page by page as you browse. It visits the subreddits
+you follow on a schedule, the way a logged-out browser would, saves the hot posts and their
+comment trees in SQLite, and serves them from your own machine.
+
+- **No account, no app, no tracking.** No ads, promoted posts, login walls, "open in app"
+  banners or Reddit JavaScript. Reading the archive sends Reddit nothing (media aside, see
+  below): what it sees is a logged-out visitor reading a few hot pages every hour, not you and
+  not what you open.
+- **Your reading stays yours.** Your subreddits, history and settings are files in a data
+  directory on your machine.
+- **Reddit links just work.** Point reddit.com at your instance (a redirect extension, or
+  swap the domain): `/r/<sub>/comments/<id>/…`, comment permalinks, `/s/` share links and
+  galleries open the archived copy. A post that isn't archived yet is one click away.
+- **Full threads.** Logged out, Reddit shows ~15 top-level comments per thread. archivvit
+  loads the other sort orders, "more replies" and "continue this thread" to rebuild the
+  whole tree, and re-fetches threads 2 h and 12 h later.
+- **It's yours to keep.** After its last re-fetch a thread is never touched again, so it stays
+  readable whatever happens to it on Reddit later: removed, nuked by its author, subreddit
+  gone private. Retention cleans up old posts; "Keep forever" exempts the ones you care about.
+- **Polite and hard to block.** One request at a time, a few seconds apart, within Reddit's
+  rate-limit headers. A headless browser passes the bot check once, then a client with a
+  Chrome TLS fingerprint reuses its cookies. Why this works when the JSON API and old.reddit
+  don't: [docs/reddit-access.md](docs/reddit-access.md).
+- **Easy to host.** One process, one directory. Run it with [Docker](#docker), the
+  [NixOS module](#nixos) or plain Python.
+
+What it isn't: a live Reddit front end. You read what was archived, plus whatever you fetch
+on demand. It's for one person or a household: there's no login, so keep it on localhost,
+your LAN/VPN or behind an authenticating reverse proxy, and don't make it public. Images and
+videos still load from Reddit's media hosts (`i.redd.it`, `v.redd.it`) when you view them.
+
+## Docker
+
+```sh
+docker build -t archivvit https://github.com/fazo96/archivvit.git
+docker run -d --name archivvit --restart unless-stopped \
+  -p 127.0.0.1:8080:8080 -v archivvit:/data archivvit
+```
+
+Open http://127.0.0.1:8080, add subreddits on the Settings page and press "Run now". The
+`/data` volume holds `archive.sqlite`, `cookies.json` and `settings.json`. The port is published
+on localhost only because the UI has no login. To reach it from other devices, put a reverse
+proxy with authentication in front of it or use a VPN such as Tailscale. One-off commands run
+through the same image, e.g. `docker exec archivvit archivvit stats`.
+
+With Compose:
+
+```yaml
+services:
+  archivvit:
+    build: https://github.com/fazo96/archivvit.git
+    restart: unless-stopped
+    ports: ["127.0.0.1:8080:8080"]
+    volumes: ["archivvit:/data"]
+volumes:
+  archivvit:
+```
 
 ## How it works
 

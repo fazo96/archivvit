@@ -1,0 +1,272 @@
+:root {
+  --bg: #f6f6f4;
+  --surface: #ffffff;
+  --text: #1c1c1a;
+  --muted: #6b6b66;
+  --border: #e2e2dc;
+  --accent: #c2410c;
+  --accent-soft: #fdebe1;
+  --thread: #d9d9d2;
+  --error: #b42318;
+  --ok: #2f6b3a;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #161615;
+    --surface: #1f1f1d;
+    --text: #e8e8e3;
+    --muted: #9b9b94;
+    --border: #2f2f2c;
+    --accent: #fb923c;
+    --accent-soft: #3a2418;
+    --thread: #3a3a36;
+    --error: #f97066;
+    --ok: #7ccf8a;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+main {
+  max-width: 50rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+h1 { font-size: 1.5rem; line-height: 1.25; margin: 0.5rem 0 0.75rem; overflow-wrap: anywhere; }
+h2 { font-size: 1.1rem; margin: 1.5rem 0 0.5rem; }
+
+.muted { color: var(--muted); }
+.small { font-size: 0.875rem; }
+code { font-size: 0.85em; overflow-wrap: anywhere; }
+
+/* Header */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 700; color: var(--text); }
+.subs {
+  display: flex;
+  gap: 0.25rem;
+  flex: 1;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.subs a, .settings-link {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.subs a[aria-current], .settings-link[aria-current] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.flash {
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.5rem;
+  background: var(--accent-soft);
+}
+.flash.error { color: var(--error); }
+
+/* Post lists */
+
+.posts { list-style: none; margin: 0; padding: 0; }
+.post {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+.rank {
+  min-width: 1.5rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.post-main { min-width: 0; }
+.post-title {
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.post-title:visited { color: var(--muted); }
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.flair {
+  display: inline-block;
+  margin-left: 0.25rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  vertical-align: middle;
+}
+.meta .flair { margin-left: 0; }
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  margin: 1rem 0;
+}
+
+/* Thread */
+
+.crumbs { margin: 0; font-size: 0.9rem; }
+.thread-post {
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+.post-image {
+  display: block;
+  max-width: 100%;
+  max-height: 80vh;
+  margin: 0.75rem auto;
+  border-radius: 0.4rem;
+}
+.link-out { overflow-wrap: anywhere; }
+
+.md { overflow-wrap: anywhere; }
+.md p { margin: 0.4rem 0; }
+.md img, .md video { max-width: 100%; height: auto; }
+.md pre {
+  overflow-x: auto;
+  padding: 0.6rem;
+  background: var(--bg);
+  border-radius: 0.4rem;
+}
+.md blockquote {
+  margin: 0.4rem 0;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--thread);
+  color: var(--muted);
+}
+.md table { display: block; overflow-x: auto; border-collapse: collapse; }
+.md th, .md td { padding: 0.25rem 0.5rem; border: 1px solid var(--border); }
+.md-spoiler-text { background: var(--text); color: var(--text); border-radius: 0.2rem; }
+.md-spoiler-text:hover, .md-spoiler-text:active { background: none; }
+
+.comments { margin-top: 1rem; }
+.sort { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; color: var(--muted); }
+.sort a[aria-current] { font-weight: 700; }
+
+.comment { margin-top: 0.6rem; }
+.comment > summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.6rem;
+  padding: 0.15rem 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  list-style: none;
+}
+.comment > summary::-webkit-details-marker { display: none; }
+.comment > summary::before { content: "−"; width: 0.8rem; color: var(--muted); }
+.comment:not([open]) > summary::before { content: "+"; }
+.comment .author { color: var(--text); font-weight: 600; }
+.comment .replies { display: none; }
+.comment:not([open]) .replies { display: inline; }
+.comment > .body { padding-left: 1.4rem; }
+.children {
+  margin-left: 0.35rem;
+  padding-left: 0.6rem;
+  border-left: 2px solid var(--thread);
+}
+/* Keep deep threads readable on phones: indent less as nesting grows. */
+.children .children .children .children { margin-left: 0.1rem; padding-left: 0.35rem; }
+
+/* Settings */
+
+.card {
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+}
+.card h2:first-child { margin-top: 0; }
+.status dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0 0 0.75rem;
+}
+.status dt { color: var(--muted); }
+.status dd { margin: 0; }
+.status form { margin-bottom: 1rem; }
+.errors { margin: 0.25rem 0; padding-left: 1.2rem; color: var(--error); }
+
+.settings label { display: block; margin-bottom: 0.9rem; font-weight: 500; }
+.settings small { display: block; color: var(--muted); font-weight: 400; }
+.settings .row { display: flex; gap: 1rem; }
+.settings .row label { flex: 1; }
+input, textarea, button {
+  font: inherit;
+  color: inherit;
+}
+input, textarea {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.55rem 0.65rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.4rem;
+}
+input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+button {
+  padding: 0.6rem 1.2rem;
+  background: var(--accent);
+  color: #fff;
+  border: 0;
+  border-radius: 0.4rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (max-width: 30rem) {
+  main { padding: 0.75rem; }
+  .top { gap: 0.5rem; padding: 0.5rem 0.75rem; }
+  .brand { display: none; }
+  .post { padding: 0.65rem; gap: 0.5rem; }
+  .status dl { grid-template-columns: 1fr; gap: 0 0; }
+  .status dd { margin-bottom: 0.5rem; }
+}

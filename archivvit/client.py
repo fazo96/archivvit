@@ -26,6 +26,7 @@ class Reddit:
         self.next_at = 0.0
         self.remaining = None
         self.reset_at = None
+        self.requests = 0
 
     def _connect(self, fresh: bool):
         cookies = None if fresh else session.load(self.cfg.cookies_path)
@@ -61,6 +62,7 @@ class Reddit:
                 data = {**(data or {}), "csrf_token": self._csrf()}
             t = time.monotonic()
             r = self.http.request(method, url, data=data, timeout=30)
+            self.requests += 1
             ms = int((time.monotonic() - t) * 1000)
             rem = r.headers.get("x-ratelimit-remaining")
             reset = r.headers.get("x-ratelimit-reset")

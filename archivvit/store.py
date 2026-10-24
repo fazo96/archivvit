@@ -73,7 +73,7 @@ def now() -> str:
 
 class Store:
     def __init__(self, path: Path | str):
-        self.db = sqlite3.connect(path)
+        self.db = sqlite3.connect(path, timeout=30)
         self.db.row_factory = sqlite3.Row
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.executescript(SCHEMA)
@@ -177,6 +177,61 @@ class Store:
                 "INSERT INTO fetch_log VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                 (now(), method, url, status, nbytes, ms, remaining, note),
             )
+
+    # Reads for the web UI.
+
+    def subreddits(self) -> list[str]:
+        return [r[0] for r in self.db.execute("SELECT DISTINCT subreddit FROM posts ORDER BY lower(subreddit)")]
+
+    def latest_hot(self, subreddit: str):
+        """(taken_at, posts in rank order) of the newest hot snapshot."""
+        row = self.db.execute(
+            "SELECT max(taken_at) FROM hot_snapshots WHERE lower(subreddit) = lower(?)", (subreddit,)
+        ).fetchone()
+        if not row[0]:
+            return None, []
+        posts = self.db.execute(
+            f"""
+            SELECT p.*, h.rank, {self._archived} FROM hot_snapshots h JOIN posts p ON p.id = h.post_id
+            WHERE h.taken_at = ? AND lower(h.subreddit) = lower(?) ORDER BY h.rank
+            """,
+            (row[0], subreddit),
+        ).fetchall()
+        return row[0], posts
+
+    def older_posts(self, subreddit: str, exclude: list[str], limit: int, offset: int):
+        """Archived posts not in the latest hot snapshot, most recently seen in hot first."""
+        marks = ",".join("?" * len(exclude))
+        return self.db.execute(
+            f"""
+            SELECT p.*, {self._archived} FROM posts p
+            WHERE lower(p.subreddit) = lower(?) {f"AND p.id NOT IN ({marks})" if exclude else ""}
+            ORDER BY p.last_seen_hot DESC, p.created DESC LIMIT ? OFFSET ?
+            """,
+            (subreddit, *exclude, limit, offset),
+        ).fetchall()
+
+    def post(self, post_id: str):
+        return self.db.execute(f"SELECT p.*, {self._archived} FROM posts p WHERE p.id = ?", (post_id,)).fetchone()
+
+    def comments(self, post_id: str):
+        return self.db.execute("SELECT * FROM comments WHERE post_id = ?", (post_id,)).fetchall()
+
+    def archived_ids(self, ids: list[str]) -> set[str]:
+        if not ids:
+            return set()
+        marks = ",".join("?" * len(ids))
+        return {r[0] for r in self.db.execute(f"SELECT id FROM posts WHERE id IN ({marks})", ids)}
+
+    def recent_errors(self, limit: int = 10):
+        return self.db.execute(
+            "SELECT * FROM fetch_log WHERE status >= 400 OR note IS NOT NULL ORDER BY rowid DESC LIMIT ?", (limit,)
+        ).fetchall()
+
+    def last_hot_at(self) -> str | None:
+        return self.db.execute("SELECT max(taken_at) FROM hot_snapshots").fetchone()[0]
+
+    _archived = "(SELECT count(*) FROM comments c WHERE c.post_id = p.id) AS archived_comments"
 
     def stats(self) -> dict:
         q = lambda sql: self.db.execute(sql).fetchone()[0]

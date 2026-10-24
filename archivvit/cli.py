@@ -10,7 +10,7 @@ from .store import Store
 
 def main():
     ap = argparse.ArgumentParser(prog="archivvit", description="Local read-only Reddit archive")
-    ap.add_argument("-c", "--config", help="TOML config (default: $ARCHIVVIT_CONFIG, else built-in defaults)")
+    ap.add_argument("-d", "--data", help="data directory (default: $ARCHIVVIT_DATA, else ./data)")
     ap.add_argument("-v", "--verbose", action="store_true")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("scrape", help="fetch hot pages and the threads that are due")
@@ -18,6 +18,10 @@ def main():
     t.add_argument("url")
     sub.add_parser("session", help="get fresh cookies from the headless browser")
     sub.add_parser("stats", help="archive counts")
+    s = sub.add_parser("serve", help="web UI, scraping on the configured interval")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8080)
+    s.add_argument("--no-scheduler", action="store_true", help="only serve the UI")
     args = ap.parse_args()
 
     logging.basicConfig(
@@ -27,12 +31,14 @@ def main():
     for noisy in ("asyncio", "curl_cffi"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
-    cfg = config.load(args.config)
+    cfg = config.load(args.data)
+    if args.cmd == "serve":
+        return serve(cfg, args)
     store = Store(cfg.db_path)
     reddit = Reddit(cfg, store)
     try:
         if args.cmd == "scrape":
-            scrape.scrape(cfg, store, reddit)
+            print(json.dumps(scrape.scrape(cfg, store, reddit), indent=1))
         elif args.cmd == "thread":
             m = re.search(r"(/r/[^/]+/comments/([a-z0-9]+)/[^?#]*)", args.url)
             if not m:
@@ -47,3 +53,17 @@ def main():
             print(json.dumps(store.stats(), indent=1))
     finally:
         store.close()
+
+
+def serve(cfg, args):
+    import waitress
+
+    from .scheduler import Scheduler
+    from .web import create_app
+
+    scheduler = None
+    if not args.no_scheduler:
+        scheduler = Scheduler(cfg.data_dir)
+        scheduler.start()
+    logging.getLogger(__name__).info("serving on http://%s:%d", args.host, args.port)
+    waitress.serve(create_app(cfg.data_dir, scheduler), host=args.host, port=args.port, threads=4)

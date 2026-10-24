@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Settings · archivvit{% endblock %}
+{% macro val(key, current) %}{{ form[key] if form else current }}{% endmacro %}
+{% block main %}
+<h1>Settings</h1>
+
+<section class="card status">
+  <h2>Scraper</h2>
+  {% if not scheduler %}
+  <p class="muted">The scheduler is not running in this process (started with <code>--no-scheduler</code>).</p>
+  {% else %}
+  <dl>
+    <dt>Now</dt>
+    <dd>{% if scheduler.running_since %}<strong>Running</strong>, started {{ scheduler.running_since|ago }}{% else %}Idle{% endif %}</dd>
+    <dt>Next pass</dt>
+    <dd>{% if scheduler.running_since %}after this one{% elif scheduler.next_run %}{{ scheduler.next_run|ago }}{% else %}—{% endif %}</dd>
+    {% set last = scheduler.last_run %}
+    <dt>Last pass</dt>
+    <dd>
+      {% if last %}
+      {{ last.started|ago }}, {{ last.seconds }} s, {{ 'ok' if last.ok else 'with errors' }}:
+      {{ last.hot_posts|default(0) }} hot posts, {{ last.threads|default(0) }} threads, {{ last.comments|default(0) }} comments, {{ last.requests|default(0) }} requests
+      {% if last.errors %}<ul class="errors">{% for e in last.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      {% else %}none since start{% endif %}
+    </dd>
+  </dl>
+  <form method="post" action="{{ url_for('run_now') }}"><button type="submit">Run now</button></form>
+  {% endif %}
+  <dl>
+    <dt>Archive</dt>
+    <dd>{{ stats.posts }} posts ({{ stats.posts_with_thread }} with comments), {{ stats.comments }} comments</dd>
+    <dt>Requests</dt>
+    <dd>{{ stats.requests_last_hour }} in the last hour</dd>
+  </dl>
+  {% if errors %}
+  <details>
+    <summary>Recent request errors ({{ errors|length }})</summary>
+    <ul class="errors small">
+      {% for e in errors %}<li>{{ e.at|ago }}: {{ e.method }} {{ e.status }}{% if e.note %} ({{ e.note }}){% endif %} <code>{{ e.url[22:110] }}</code></li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+</section>
+
+<form method="post" class="card settings">
+  <h2>Subreddits</h2>
+  <label>
+    One per line
+    <textarea name="subreddits" rows="5" autocapitalize="off" spellcheck="false">{{ form.subreddits if form else cfg.subreddits|join('\n') }}</textarea>
+  </label>
+  <label>
+    Hot posts to archive per subreddit
+    <input type="number" name="posts_per_sub" min="1" max="100" value="{{ val('posts_per_sub', cfg.posts_per_sub) }}">
+  </label>
+
+  <h2>Timers</h2>
+  <label>
+    Scrape every (minutes)
+    <input type="number" name="scrape_interval_minutes" min="10" max="1440" value="{{ val('scrape_interval_minutes', cfg.scrape_interval_minutes) }}">
+  </label>
+  <label>
+    Re-fetch comments after (hours, comma-separated)
+    <input type="text" name="refetch_hours" inputmode="decimal" value="{{ val('refetch_hours', cfg.refetch_hours|join(', ')) }}">
+    <small>A thread is fetched when it shows up in hot, then again at these ages. Skipped when nothing is new.</small>
+  </label>
+  <label>
+    Stop fetching threads not seen in hot for (hours)
+    <input type="number" name="hot_window_hours" min="1" step="any" value="{{ val('hot_window_hours', cfg.hot_window_hours) }}">
+  </label>
+
+  <h2>Politeness</h2>
+  <div class="row">
+    <label>
+      Min delay (s)
+      <input type="number" name="min_delay" min="0.5" step="any" value="{{ val('min_delay', cfg.min_delay) }}">
+    </label>
+    <label>
+      Max delay (s)
+      <input type="number" name="max_delay" min="0.5" step="any" value="{{ val('max_delay', cfg.max_delay) }}">
+    </label>
+  </div>
+  <label>
+    Extra requests per thread
+    <input type="number" name="max_thread_requests" min="0" max="500" value="{{ val('max_thread_requests', cfg.max_thread_requests) }}">
+    <small>Spent on other sort orders, "more replies" and "continue this thread". Big threads need many.</small>
+  </label>
+
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

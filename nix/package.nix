@@ -32,6 +32,9 @@ python3Packages.buildPythonApplication {
     curl-cffi
     lxml
     cssselect
+    flask
+    waitress
+    nh3
   ];
   nativeCheckInputs = [ python3Packages.pytestCheckHook ];
 

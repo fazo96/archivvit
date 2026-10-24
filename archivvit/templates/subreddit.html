@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_post.html" import post_row %}
+{% block title %}r/{{ sub }} · archivvit{% endblock %}
+{% block main %}
+<h1>r/{{ sub }}</h1>
+{% if page == 1 %}
+  {% if hot %}
+  <p class="muted">Hot, as of {{ taken_at|ago }}</p>
+  <ol class="posts">
+    {% for p in hot %}{{ post_row(p, p.rank) }}{% endfor %}
+  </ol>
+  {% else %}
+  <p class="muted">Nothing archived yet. The next scrape pass will fetch it, or start one from <a href="{{ url_for('settings') }}">Settings</a>.</p>
+  {% endif %}
+{% endif %}
+
+{% if older %}
+<h2>{% if page == 1 %}Earlier{% else %}Earlier, page {{ page }}{% endif %}</h2>
+<ol class="posts">
+  {% for p in older %}{{ post_row(p) }}{% endfor %}
+</ol>
+{% endif %}
+
+{% if page > 1 or has_next %}
+<nav class="pager">
+  {% if page > 1 %}<a href="{{ url_for('subreddit', sub=sub, page=page - 1) }}">← Newer</a>{% endif %}
+  {% if has_next %}<a href="{{ url_for('subreddit', sub=sub, page=page + 1) }}">Older →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

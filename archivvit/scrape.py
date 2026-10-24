@@ -90,10 +90,17 @@ def fetch_thread(reddit: Reddit, permalink: str, max_requests: int):
     return post, list(comments.values()), requests
 
 
-def scrape(cfg: Config, store: Store, reddit: Reddit):
+def scrape(cfg: Config, store: Store, reddit: Reddit) -> dict:
+    summary = {"hot_posts": 0, "threads": 0, "comments": 0, "errors": []}
     for sub in cfg.subreddits:
-        posts = fetch_hot(reddit, sub, cfg.posts_per_sub)
+        try:
+            posts = fetch_hot(reddit, sub, cfg.posts_per_sub)
+        except RuntimeError as e:
+            log.error("r/%s: %s", sub, e)
+            summary["errors"].append(f"r/{sub}: {e}")
+            continue
         store.record_hot(sub, posts)
+        summary["hot_posts"] += len(posts)
         log.info("r/%s: %d hot posts", sub, len(posts))
 
     due = store.threads_due(cfg.refetch_hours, cfg.hot_window_hours)
@@ -103,9 +110,14 @@ def scrape(cfg: Config, store: Store, reddit: Reddit):
             post, comments, extra = fetch_thread(reddit, row["permalink"], cfg.max_thread_requests)
         except RuntimeError as e:
             log.error("%s", e)
+            summary["errors"].append(str(e))
             continue
         store.record_thread(post, row["id"], comments)
+        summary["threads"] += 1
+        summary["comments"] += len(comments)
         log.info(
             "[%d/%d] %s: %d/%s comments (+%d requests) %s",
             i, len(due), row["id"], len(comments), post.comment_count, extra, post.title[:50],
         )
+    summary["requests"] = reddit.requests
+    return summary

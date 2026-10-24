@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "archivvit"
+version = "0.1.0"
+description = "A local, read-only archive of a few subreddits' hot pages and comments"
+requires-python = ">=3.12"
+dependencies = ["playwright", "curl_cffi", "lxml", "cssselect"]
+
+[project.scripts]
+archivvit = "archivvit.cli:main"
+
+[tool.setuptools]
+packages = ["archivvit"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -43,6 +43,16 @@ def test_thread():
     assert frag.more and all(m.cursor and "/svc/shreddit/more-comments/" in m.url for m in frag.more)
 
 
+def test_thread_comments_outside_first_html_root():
+    # Reddit streams the comment tree in <template> blocks after </html>; libxml2 leaves them
+    # outside the first root, which is why parse.py queries the whole tree.
+    import lxml.html
+
+    doc = lxml.html.document_fromstring(load("thread"))
+    assert doc.cssselect("shreddit-comment") == []
+    assert len(parse.parse_comments(load("thread")).comments) == 24
+
+
 def test_comment_body_is_own_not_childs():
     frag = parse.parse_comments(load("thread"))
     by_id = {c.id: c for c in frag.comments}

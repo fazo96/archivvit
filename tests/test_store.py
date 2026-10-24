@@ -55,6 +55,17 @@ def test_comment_upsert_keeps_parent_and_body():
     assert tuple(p) == ("<p>full</p>", 2)
 
 
+def test_refetch_keeps_deleted_comment():
+    s = Store(":memory:")
+    s.record_thread(post(), "t3_a", [comment("t1_a", body="<p>hi</p>"), comment("t1_b")])
+    gone = Comment(id="t1_a", post_id="t3_a", parent_id=None, depth=0, author="[deleted]", score=None,
+                   created=None, permalink=None, body_html=None)
+    s.record_thread(None, "t3_a", [gone, Comment(**{**vars(gone), "id": "t1_c"})])
+    rows = s.db.execute("SELECT id, author, score, body_html FROM comments ORDER BY id").fetchall()
+    assert [tuple(r) for r in rows] == [("t1_a", "u", 1, "<p>hi</p>"), ("t1_b", "u", 1, "x"),
+                                        ("t1_c", "[deleted]", None, None)]
+
+
 def test_listing_does_not_clear_body():
     s = Store(":memory:")
     s.record_thread(post(body_html="<p>full</p>"), "t3_a", [])

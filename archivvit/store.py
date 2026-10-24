@@ -135,7 +135,8 @@ class Store:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (id) DO UPDATE SET
                   parent_id = coalesce(excluded.parent_id, parent_id),
-                  author = coalesce(excluded.author, author),
+                  -- A comment deleted since the last fetch comes back as "[deleted]" with no body.
+                  author = coalesce(nullif(excluded.author, '[deleted]'), author, excluded.author),
                   score = coalesce(excluded.score, score),
                   body_html = coalesce(excluded.body_html, body_html),
                   last_seen = excluded.last_seen

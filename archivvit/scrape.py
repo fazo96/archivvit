@@ -2,7 +2,7 @@ import logging
 
 from .client import Reddit
 from .config import Config
-from .parse import BASE, Comment, parse_comments, parse_listing
+from .parse import BASE, Comment, parse_comments, parse_listing, spelled_as
 from .store import Store
 
 log = logging.getLogger(__name__)
@@ -12,10 +12,19 @@ MAX_LISTING_PAGES = 4
 
 
 def fetch_hot(reddit: Reddit, sub: str, limit: int):
-    url = f"{BASE}/r/{sub}/hot/"
+    html = reddit.get(f"{BASE}/r/{sub}/hot/")
+    listing = parse_listing(html)
+    if not listing.posts:
+        name = spelled_as(html, sub)
+        if name:
+            log.warning("r/%s is spelled r/%s on Reddit; use that in Settings", sub, name)
+            listing = parse_listing(reddit.get(f"{BASE}/r/{name}/hot/"))
+        if not listing.posts:
+            raise RuntimeError(f"r/{sub}: no posts on the hot page (does the subreddit exist?)")
     posts, seen = [], set()
-    for _ in range(MAX_LISTING_PAGES):
-        listing = parse_listing(reddit.get(url))
+    for page in range(MAX_LISTING_PAGES):
+        if page:
+            listing = parse_listing(reddit.get(url))
         for p in listing.posts:
             if p.id not in seen:
                 seen.add(p.id)

@@ -5,6 +5,7 @@ lxml is used on purpose: Reddit streams the comment tree inside
 of the document tree. libxml2 parses straight through them.
 """
 
+import re
 from dataclasses import dataclass, field
 from html import unescape
 from urllib.parse import urljoin
@@ -180,6 +181,15 @@ def parse_comments(html: str) -> Fragment:
             seen.add(url)
             frag.continue_urls.append(url)
     return frag
+
+
+def spelled_as(html: str, sub: str) -> str | None:
+    """Subreddit URLs are case-sensitive: /r/localllama/ is an empty page that still
+    mentions r/LocalLLaMA. Returns that spelling, if the page has a different one."""
+    for name in re.findall(r"\br/([A-Za-z0-9_]{2,21})\b", html):
+        if name.lower() == sub.lower() and name != sub:
+            return name
+    return None
 
 
 def is_challenge(html: str) -> bool:

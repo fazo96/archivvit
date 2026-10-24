@@ -18,6 +18,14 @@
         default = archivvit;
       });
 
+      nixosModules.default = import ./nix/module.nix { inherit self; };
+
+      # `nix flake check`: the package (its build runs pytest) and the module in a VM.
+      checks = forAllSystems (pkgs: {
+        package = self.packages.${pkgs.stdenv.hostPlatform.system}.archivvit;
+        vm = import ./nix/vm-test.nix { inherit self pkgs; };
+      });
+
       devShells = forAllSystems (
         pkgs:
         let

@@ -42,9 +42,37 @@ Everything lives in the data directory (`--data`, else `$ARCHIVVIT_DATA`, else `
 `config.py` apply. The UI has no login: keep it on localhost or behind a private proxy.
 `nix build` gives a wrapped `archivvit` with the headless browser.
 
+## NixOS
+
+The flake exports `nixosModules.default`, a `services.archivvit` systemd service:
+
+```nix
+# flake.nix
+inputs.archivvit.url = "github:fazo96/archivvit";
+# nixosSystem modules
+archivvit.nixosModules.default
+
+# configuration
+services.archivvit = {
+  enable = true;
+  port = 8080;                    # on host 127.0.0.1; put a private reverse proxy in front
+  dataDir = "/var/lib/archivvit"; # archive.sqlite, cookies.json, settings.json
+};
+```
+
+Subreddits and timers are set from the Settings page. `nix flake check` builds the package
+(running pytest) and boots the module in a VM: UI up, settings saved, a pass without internet
+recorded as failed, and headless Chromium working inside the service's sandbox.
+
+## Tests
+
+`tests/fixtures` are real Reddit pages reduced to what the parser reads and anonymized by
+`tests/fixtures/anonymize.py`. To refresh them, save new pages (see `docs/spikes/spike5.py`)
+somewhere outside the repo and run the script on them.
+
 ## Known gaps
 
 - Big threads are expensive: "continue this thread" pages often add only one comment each.
   83 comments took 68 extra requests; the default cap is 30, so large threads may be incomplete.
 - Responses are ~500 KB of HTML each.
-- No media download (images load from Reddit's image host, videos are links) or NixOS module yet.
+- No media download: images load from Reddit's image host, videos are links.

@@ -3,7 +3,7 @@ import json
 import logging
 import re
 
-from . import config, scrape
+from . import config, scrape, session
 from .client import Reddit
 from .store import Store
 
@@ -16,7 +16,9 @@ def main():
     sub.add_parser("scrape", help="fetch hot pages and the threads that are due")
     t = sub.add_parser("thread", help="fetch one thread now (URL or permalink)")
     t.add_argument("url")
-    sub.add_parser("session", help="get fresh cookies from the headless browser")
+    se = sub.add_parser("session", help="get fresh cookies from the headless browser")
+    se.add_argument("--url", help="page to pass the bot check on (default: the first subreddit); "
+                                  "with this, cookies are printed instead of saved")
     sub.add_parser("stats", help="archive counts")
     s = sub.add_parser("serve", help="web UI, scraping on the configured interval")
     s.add_argument("--host", default="127.0.0.1")
@@ -47,8 +49,12 @@ def main():
             store.record_thread(post, post.id, comments)
             print(f"{post.title}: {len(comments)}/{post.comment_count} comments, {extra} extra requests")
         elif args.cmd == "session":
-            reddit._connect(fresh=True)
-            print(f"cookies saved to {cfg.cookies_path}")
+            if args.url:
+                cookies = session.browser_cookies(cfg.user_agent, args.url)
+                print(" ".join(sorted(c["name"] for c in cookies)))
+            else:
+                reddit._connect(fresh=True)
+                print(f"cookies saved to {cfg.cookies_path}")
         elif args.cmd == "stats":
             print(json.dumps(store.stats(), indent=1))
     finally:
